@@ -1,0 +1,17 @@
+[project]
+name = "gng-backend"
+version = "0.0.1"
+description = ""
+authors = [
+    {name = "syntaxsdev",email = "sglinton@redhat.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic (>=2.10.6,<3.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
