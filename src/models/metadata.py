@@ -28,7 +28,6 @@ class Duration(BaseModel):
 
 class TypeMetadata(BaseModel):
     duration: Duration
-    production_info: ProductionInfo
 
 
 # Inherit from TypeMetadata

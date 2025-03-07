@@ -17,7 +17,9 @@ class ObjectStorage:
         self.bucket = bucket
         endpoint = endpoint if endpoint else os.getenv("AWS_S3_ENDPOINT", None)
         access_key = access_key if access_key else os.getenv("AWS_ACCESS_KEY_ID", None)
-        secret_key = secret_key if secret_key else os.getenv("AWS_SECRET_ACCESS_KEY", None)
+        secret_key = (
+            secret_key if secret_key else os.getenv("AWS_SECRET_ACCESS_KEY", None)
+        )
         region = region if region else os.getenv("AWS_DEFAULT_REGION", "")
         bucket = bucket if bucket else os.getenv("AWS_S3_BUCKET", None)
 
@@ -30,7 +32,7 @@ class ObjectStorage:
             access_key=access_key,
             secret_key=secret_key,
             region=region,
-            secure=secure
+            secure=secure,
         )
 
     def upload_file(self, bucket: str, file_path: str, s3_path: str, *, meta: dict):
