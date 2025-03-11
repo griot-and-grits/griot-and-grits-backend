@@ -37,15 +37,17 @@ class MetadataService:
         self.__validate_file(file)
 
         if file_type in self.VIDEO_TYPES:
-            vm = self._video_to_metadata(file, file_type)
-            return vm
+            return self._video_to_metadata(file, file_type)
+
+        elif file_type in self.AUDIO_TYPES:
+            return self._audio_to_metadata(file)
 
     def _video_to_metadata(self, file: str, file_type: str) -> VideoMetadata:
         """
         Convert video probe to proper metadata
 
         Args:
-            file: the video file
+            file: the video file location.
         """
         data = ffmpeg.probe(file)
         video_meta: dict = next(
@@ -70,6 +72,31 @@ class MetadataService:
             codec=codec,
             format=file_type,
             frame_rate=fps,
+            file_size_mb=size_in_mb,
+        )
+
+    def _audio_to_metadata(self, file: str) -> AudioMetadata:
+        """
+        Convert audio formats probe to proper metadata
+
+        Args:
+            file: the audio file location.
+        """
+        data: dict = ffmpeg.probe(file)
+        audio_meta: dict = data["streams"][0]
+        channels = audio_meta.get("channels")
+        sample_rate = audio_meta.get("sample_rate")
+        secs = round(float(audio_meta.get("duration")), 0)
+        codec = audio_meta.get("codec_name")
+        duration = Duration(seconds=secs)
+        # get size in mb
+        size_in_mb = round((os.path.getsize(file) / (1024 * 1024)), 2)
+
+        return AudioMetadata(
+            channels=channels,
+            duration=duration,
+            codec=codec,
+            sample_rate=sample_rate,
             file_size_mb=size_in_mb,
         )
 

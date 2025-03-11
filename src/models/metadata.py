@@ -28,12 +28,13 @@ class Duration(BaseModel):
 
 class TypeMetadata(BaseModel):
     duration: Duration
+    file_size_mb: float
 
 
 # Inherit from TypeMetadata
 class AudioMetadata(TypeMetadata):
     codec: str
-    channels: str
+    channels: int
     sample_rate: str
 
 
@@ -44,7 +45,6 @@ class VideoMetadata(TypeMetadata):
     resolution_width: int
     frame_rate: float
     codec: str
-    file_size_mb: float
 
 
 class Licensing(BaseModel):
