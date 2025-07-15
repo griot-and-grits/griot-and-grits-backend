@@ -1,4 +1,4 @@
-from .models.metadata import (
+from app.models.metadata import (
     Artifact,
     VideoMetadata,
     AudioMetadata,
@@ -28,10 +28,24 @@ class MetadataService:
                 "Could not find file. Please ensure path is correct."
             )
 
+    async def extract_audio_to_bytes(self, input_video: str) -> bytes:
+        """Extract the video as audio bytes
+
+        Args:
+            the input_video: the file path to the video.
+        """
+        out, _ = (
+            ffmpeg.input(input_video)
+            .output("pipe:", format="wav", acodec="pcm_s16le", ar="16000")
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        return out
+
     def extract(self, file: str) -> Artifact:
         """Extracts a file to its corresponding Metadata object.
 
-        Args: a file or path to a file.
+        Args:
+            file: a file or path to a file.
         """
         file_type = file.split(".")[-1].lower()
         self.__validate_file(file)

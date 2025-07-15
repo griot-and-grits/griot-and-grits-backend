@@ -1,5 +1,5 @@
 [project]
-name = "gng-backend"
+name = "gng_backend"
 version = "0.0.1"
 description = ""
 authors = [
@@ -11,11 +11,18 @@ dependencies = [
     "pydantic (>=2.10.6,<3.0.0)",
     "minio (>=7.2.15,<8.0.0)",
     "ffmpeg-python (>=0.2.0,<0.3.0)",
+    "httpx (>=0.28.1,<0.29.0)",
 ]
 
 [tool.poetry]
 package-mode = false
 
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
