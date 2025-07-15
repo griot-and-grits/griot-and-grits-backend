@@ -1,7 +1,8 @@
 from fastapi import FastAPI
-
+from .api import artifacts_router
 
 app = FastAPI(title="Griot and Grits API", description="Griot and Grits API")
+app.include_router(artifacts_router)
 
 
 @app.get("/")
