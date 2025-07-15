@@ -1,4 +1,4 @@
-from gng_backend.models.metadata import (
+from app.models.metadata import (
     Artifact,
     VideoMetadata,
     AudioMetadata,

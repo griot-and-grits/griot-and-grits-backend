@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from app.models.metadata import Artifact
+from app.factory import factory
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
@@ -8,4 +9,4 @@ router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 async def new_artifact(
     artifact: Artifact,
 ):
-    return {"message": "Hello World"}
+    return await factory.db.insert_artifact("artifacts", artifact)
