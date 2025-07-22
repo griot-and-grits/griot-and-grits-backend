@@ -16,12 +16,12 @@ dev-mongo-up:
 			mongo:latest; \
 	fi
 dev-mongo-down:
-	docker stop mongodb-test
-	docker rm mongodb-test
+	docker stop mongodb-dev
+	docker rm mongodb-dev
 
 dev-mongo-clean:
-	docker stop mongodb-test
-	docker rm mongodb-test
+	docker stop mongodb-dev
+	docker rm mongodb-dev
 	docker rmi mongo:latest
 
 download-openapi:

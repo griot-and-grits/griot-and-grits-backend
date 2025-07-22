@@ -1,10 +1,12 @@
 from fastapi import FastAPI
-from .api import artifacts_router
+from .api import routers
 from .factory import get_factory
 
 
 app = FastAPI(title="Griot and Grits API", description="Griot and Grits API")
-app.include_router(artifacts_router)
+# Include all routers
+for router in routers:
+    app.include_router(router)
 
 
 @app.get("/")

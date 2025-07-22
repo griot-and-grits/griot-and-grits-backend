@@ -1,3 +1,5 @@
 from .artifacts import router as artifacts_router
 
-__all__ = ["artifacts_router"]
+
+routers = [artifacts_router]
+__all__ = ["routers"]
