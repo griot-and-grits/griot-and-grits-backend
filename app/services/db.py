@@ -29,20 +29,42 @@ class Database:
         return self.db[collection_name]
 
     async def get_artifacts_paged(
-        self, page: int = 1, page_size: int = 10
+        self, page: int = 1, page_size: int = 10, search: str = ""
     ) -> Pager[Artifact]:
         """Get artifacts from the database with pagination."""
         # Calculate skip value for pagination
         skip = (page - 1) * page_size
 
         # Get total count of documents
-        total = await self.db.artifacts.count_documents({})
+        total = await self.db.artifacts.count_documents(
+            {
+                "$or": [
+                    {"title": {"$regex": search, "$options": "i"}},
+                    {"description": {"$regex": search, "$options": "i"}},
+                ]
+            }
+            if search
+            else {}
+        )
 
         # Calculate total pages
         total_pages = (total + page_size - 1) // page_size
 
         # Get paginated results
-        cursor = self.db.artifacts.find().skip(skip).limit(page_size)
+        cursor = (
+            self.db.artifacts.find(
+                {
+                    "$or": [
+                        {"title": {"$regex": search, "$options": "i"}},
+                        {"description": {"$regex": search, "$options": "i"}},
+                    ]
+                }
+                if search
+                else {}
+            )
+            .skip(skip)
+            .limit(page_size)
+        )
         items = await cursor.to_list(length=page_size)
         artifacts = [Artifact.model_validate(item) for item in items]
 
@@ -74,8 +96,20 @@ class Database:
 
     async def insert_artifact(self, artifact: Artifact):
         """Insert an artifact into the database."""
-        ior = await self.db.artifacts.insert_one(artifact.model_dump())
+        a = Artifact.create(artifact)
+        ior = await self.db.artifacts.insert_one(a.model_dump())
         return {"id": str(ior.inserted_id)}
+
+    async def update_artifact(self, artifact: Artifact):
+        """Update an artifact in the database."""
+        prev_artifact = await self.get_artifact(artifact.id)
+        print(prev_artifact)
+        print("XX", artifact)
+        a = Artifact.update(prev_artifact, artifact)
+        ior = await self.db.artifacts.update_one(
+            {"_id": ObjectId(artifact.id)}, {"$set": a.model_dump()}
+        )
+        return {"updated": str(ior.modified_count)}
 
     async def close(self):
         """Close the database connection."""

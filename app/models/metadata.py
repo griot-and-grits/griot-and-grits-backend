@@ -2,7 +2,6 @@ from .base import Base
 from pydantic import BaseModel, Field
 
 
-
 class ContentInfo(BaseModel):
     genre: str | None = None
     language: str | None = None
@@ -66,30 +65,44 @@ class AISpecificMetadata(BaseModel):
 
 class ArchivalInfo(BaseModel):
     creation_date: str = Field(description="An exact date or estimate")
-    checksum: str | None = None
-    storage_location: str | None = None
+    checksum: str | None = Field(
+        default=None, description="A checksum of the artifact."
+    )
+    storage_location: str | None = Field(
+        default=None, description="The location of the artifact."
+    )
 
 
 class ArtifactBase(Base):
     title: str = Field(
+        default=None,
         description="The title of the artifact.",
         min_length=1,
         max_length=255,
     )
-    description: str = Field(
-        description="A description of the artifact.", max_length=1000
+    description: str | None = Field(
+        default=None, description="A description of the artifact.", max_length=1000
     )
-    meta: AudioMetadata | VideoMetadata | None = None
-    content: ContentInfo | None = None
-    recorded_date: str = Field(
-        description="Date that this artifact was recorded into library"
+    meta: AudioMetadata | VideoMetadata | None = Field(
+        default=None,
+        description="The metadata of the artifact.",
+    )
+    content: ContentInfo | None = Field(
+        default=None,
+        description="The content of the artifact.",
+    )
+    recorded_date: str | None = Field(
+        default=None, description="Date that this artifact was recorded into library"
     )
     archival_info: ArchivalInfo | None = None
     ai_specific_metadata: AISpecificMetadata | None = Field(
         default=None,
         description="If any AI was related to enhancing or processing this artifact.",
     )
-    licensing: Licensing | None = None
+    licensing: Licensing | None = Field(
+        default=None,
+        description="The licensing information for the artifact.",
+    )
 
 
 class ArtifactCreate(ArtifactBase):
@@ -112,7 +125,7 @@ class Artifact(ArtifactBase):
         return cls(
             **{
                 **artifact.model_dump(),
-                **update.model_dump(),
+                **update.model_dump(exclude_none=True),
                 "version": artifact.version + 1,
             }
         )
