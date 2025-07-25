@@ -1,8 +1,6 @@
-from pydantic import BaseModel, Field, ConfigDict
+from .base import Base
+from pydantic import BaseModel, Field
 
-
-class Base(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ContentInfo(BaseModel):
@@ -72,7 +70,7 @@ class ArchivalInfo(BaseModel):
     storage_location: str | None = None
 
 
-class ArtifactBase(BaseModel):
+class ArtifactBase(Base):
     title: str = Field(
         description="The title of the artifact.",
         min_length=1,
@@ -86,9 +84,10 @@ class ArtifactBase(BaseModel):
     recorded_date: str = Field(
         description="Date that this artifact was recorded into library"
     )
-    archival_info: ArchivalInfo
+    archival_info: ArchivalInfo | None = None
     ai_specific_metadata: AISpecificMetadata | None = Field(
-        description="If any AI was related to enhancing or processing this artifact."
+        default=None,
+        description="If any AI was related to enhancing or processing this artifact.",
     )
     licensing: Licensing | None = None
 
