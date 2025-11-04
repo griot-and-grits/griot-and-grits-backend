@@ -1,8 +1,132 @@
 from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime
+from enum import Enum
 
 
 class Base(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+# ============================================
+# Preservation & Storage Models
+# ============================================
+
+
+class ArtifactStatus(str, Enum):
+    """Processing status of an artifact"""
+
+    UPLOADING = "uploading"
+    PROCESSING = "processing"
+    READY = "ready"
+    FAILED = "failed"
+    ARCHIVED = "archived"
+
+
+class StorageType(str, Enum):
+    """Type of storage backend"""
+
+    HOT = "hot"  # MinIO/S3 - frequently accessed
+    ARCHIVE = "archive"  # Globus - long-term preservation
+
+
+class FixityAlgorithm(str, Enum):
+    """Checksum algorithms for fixity checking"""
+
+    MD5 = "md5"
+    SHA256 = "sha256"
+    SHA512 = "sha512"
+
+
+class FixityInfo(BaseModel):
+    """Fixity information for integrity verification"""
+
+    checksum_md5: str = Field(description="MD5 checksum of the file")
+    checksum_sha256: str = Field(description="SHA-256 checksum of the file")
+    algorithm: list[FixityAlgorithm] = Field(
+        default=[FixityAlgorithm.MD5, FixityAlgorithm.SHA256],
+        description="Algorithms used for checksum calculation",
+    )
+    calculated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when checksums were calculated",
+    )
+    verified_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last successful verification",
+    )
+
+
+class StorageLocation(BaseModel):
+    """Storage location information for an artifact"""
+
+    storage_type: StorageType = Field(description="Type of storage (hot/archive)")
+    path: str = Field(description="Path to the file in storage")
+    bucket: str | None = Field(default=None, description="Bucket name (for S3/MinIO)")
+    endpoint: str | None = Field(
+        default=None, description="Storage endpoint or Globus endpoint ID"
+    )
+    size_bytes: int = Field(description="File size in bytes")
+    checksum_md5: str = Field(description="MD5 checksum at this location")
+    checksum_sha256: str = Field(description="SHA-256 checksum at this location")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when file was stored at this location",
+    )
+    verified_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of last successful fixity check",
+    )
+
+
+class PreservationEventType(str, Enum):
+    """PREMIS-compliant preservation event types"""
+
+    INGESTION = "ingestion"
+    VALIDATION = "validation"
+    METADATA_EXTRACTION = "metadata_extraction"
+    REPLICATION = "replication"
+    FIXITY_CHECK = "fixity_check"
+    FORMAT_MIGRATION = "format_migration"
+    DELETION = "deletion"
+    TRANSCRIPTION = "transcription"
+    ENHANCEMENT = "enhancement"
+
+
+class PreservationEventOutcome(str, Enum):
+    """Outcome of a preservation event"""
+
+    SUCCESS = "success"
+    FAILURE = "failure"
+    WARNING = "warning"
+
+
+class PreservationEvent(BaseModel):
+    """PREMIS preservation event for audit trail"""
+
+    event_type: PreservationEventType = Field(description="Type of preservation event")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the event occurred",
+    )
+    agent: str = Field(
+        default="system",
+        description="Agent that performed the event (user, system, service)",
+    )
+    outcome: PreservationEventOutcome = Field(
+        description="Outcome of the event (success/failure/warning)"
+    )
+    detail: str | None = Field(
+        default=None, description="Additional details about the event"
+    )
+    related_object: str | None = Field(
+        default=None,
+        description="Related object identifier (e.g., storage location, derivative)",
+    )
+
+
+# ============================================
+# Content & Descriptive Metadata Models
+# ============================================
 
 
 class ContentInfo(BaseModel):
@@ -103,6 +227,34 @@ class ArtifactCreate(ArtifactBase):
 
 class Artifact(ArtifactBase):
     version: int = 0
+    status: ArtifactStatus = Field(
+        default=ArtifactStatus.UPLOADING,
+        description="Current processing status of the artifact",
+    )
+    storage_locations: list[StorageLocation] = Field(
+        default_factory=list,
+        description="All storage locations for this artifact (hot + archive)",
+    )
+    preservation_events: list[PreservationEvent] = Field(
+        default_factory=list,
+        description="Audit trail of all preservation events",
+    )
+    fixity: FixityInfo | None = Field(
+        default=None,
+        description="Fixity information for integrity verification",
+    )
+    processing_metadata: dict = Field(
+        default_factory=dict,
+        description="Internal metadata for tracking processing pipeline state",
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when artifact was created",
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when artifact was last updated",
+    )
 
     @classmethod
     def create(cls, artifact: ArtifactCreate):
@@ -115,6 +267,7 @@ class Artifact(ArtifactBase):
                 **artifact.model_dump(),
                 **update.model_dump(),
                 "version": artifact.version + 1,
+                "updated_at": datetime.utcnow(),
             }
         )
 

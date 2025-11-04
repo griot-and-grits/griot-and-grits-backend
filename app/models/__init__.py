@@ -11,6 +11,13 @@ from .metadata import (
     TypeMetadata,
     VideoMetadata,
 )
+from .collection import (
+    CollectionStatus,
+    Collection,
+    CollectionDraftRequest,
+    CollectionDraftResponse,
+    CollectionVerificationResult,
+)
 
 __all__ = (
     "ArchivalInfo",
@@ -24,4 +31,9 @@ __all__ = (
     "ProductionInfo",
     "TypeMetadata",
     "VideoMetadata",
+    "CollectionStatus",
+    "Collection",
+    "CollectionDraftRequest",
+    "CollectionDraftResponse",
+    "CollectionVerificationResult",
 )

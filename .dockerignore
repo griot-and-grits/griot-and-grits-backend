@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Build artifacts
+*.log
+.ruff_cache/
+
+# OpenShift/Kubernetes
+deploy/
+k8s/
+*.yaml
+*.yml
+!pyproject.toml
+
+# Development
+Makefile
+tests/
+test_*.py
+.claude/
+
+# Poetry/Lock files (we use uv)
+poetry.lock
