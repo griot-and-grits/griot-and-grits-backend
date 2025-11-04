@@ -2,7 +2,6 @@ from app.models.metadata import (
     Artifact,
     VideoMetadata,
     AudioMetadata,
-    TypeMetadata,
     Duration,
 )
 import ffmpeg

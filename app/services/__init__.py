@@ -7,7 +7,7 @@ from .storage_location_service import StorageLocationService
 from .preservation_event_service import PreservationEventService
 from .ingestion_service import IngestionService
 from .globus_service import GlobusService
-from .package_service import PackageService
+from .collection_service import CollectionService
 
 __all__ = [
     "ObjectStorage",
@@ -19,5 +19,5 @@ __all__ = [
     "PreservationEventService",
     "IngestionService",
     "GlobusService",
-    "PackageService",
+    "CollectionService",
 ]

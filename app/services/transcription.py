@@ -1,5 +1,4 @@
 import httpx
-import io
 
 
 class Transcription:
