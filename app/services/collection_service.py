@@ -67,7 +67,7 @@ class CollectionService:
         )
 
         # Save to database
-        await self.db.insert_collection(package)
+        await self.db.insert_collection(collection)
 
         # Create directory structure in Globus
         # /archive/2025-01/{slug}/
