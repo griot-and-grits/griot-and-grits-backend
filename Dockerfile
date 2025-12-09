@@ -15,6 +15,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
+# Set environment variable to create venv at final location
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+
 # Install dependencies only (not the project itself)
 RUN uv sync --frozen --no-install-project
 
@@ -27,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
-COPY --from=builder /build/.venv /app/.venv
+COPY --from=builder /app/.venv /app/.venv
 
 # Add venv to PATH
 ENV PATH="/app/.venv/bin:$PATH"
