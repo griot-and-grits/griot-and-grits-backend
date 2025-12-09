@@ -1,0 +1,54 @@
+name: Deploy to Fly.io
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+
+    # Set environment based on branch
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'dev' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Set deployment variables
+        id: vars
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "app_name=gng-api" >> $GITHUB_OUTPUT
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "app_name=gng-api-dev" >> $GITHUB_OUTPUT
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Fly.io
+        run: |
+          flyctl deploy \
+            --app ${{ steps.vars.outputs.app_name }} \
+            --config fly.toml \
+            --build-arg ENVIRONMENT=${{ steps.vars.outputs.environment }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Get deployment info
+        run: |
+          echo "Deployment successful!"
+          echo "Environment: ${{ steps.vars.outputs.environment }}"
+          echo "App: ${{ steps.vars.outputs.app_name }}"
+          echo "URL: https://${{ steps.vars.outputs.app_name }}.fly.dev"
+          flyctl status --app ${{ steps.vars.outputs.app_name }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
