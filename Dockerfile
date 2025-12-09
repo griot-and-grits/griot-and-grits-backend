@@ -5,20 +5,18 @@ FROM python:3.11-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
 
-# Install uv
+# Copy uv from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock ./
 
-# Create virtual environment and install dependencies
-RUN uv venv /build/.venv && \
-    uv pip install --no-cache -r pyproject.toml --python /build/.venv/bin/python
+# Install dependencies only (not the project itself)
+RUN uv sync --frozen --no-install-project
 
 # Production stage
 FROM python:3.11-slim
@@ -28,11 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Set PATH to include virtual environment (must be before USER directive)
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Copy uv virtual environment from builder
+# Copy virtual environment from builder
 COPY --from=builder /build/.venv /app/.venv
+
+# Add venv to PATH
+ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
@@ -53,7 +51,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD /app/.venv/bin/python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Run the application
-CMD ["/app/.venv/bin/uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000"]
