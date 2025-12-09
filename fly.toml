@@ -1,6 +1,6 @@
 # Fly.io deployment configuration for Griot and Grits API
 app = "gng-api"
-primary_region = "bos"  # Boston region
+primary_region = "iad"  # DC region
 
 # Use the pre-built Docker image from Quay.io
 [build]
