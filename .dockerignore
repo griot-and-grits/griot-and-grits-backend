@@ -43,6 +43,7 @@ htmlcov/
 docs/
 *.md
 !README.md
+!pyproject.toml
 
 # Jupyter
 *.ipynb
