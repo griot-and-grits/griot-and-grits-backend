@@ -1,63 +1,62 @@
 # Fly.io deployment configuration for Griot and Grits API
 app = "gng-api"
-primary_region = "iad"  # DC region
+primary_region = "iad" # DC region
 
 # Use the pre-built Docker image from Quay.io
 [build]
-  dockerfile = "Dockerfile"
+dockerfile = "Dockerfile"
 
 # Ensure only one instance for consistency (can be scaled later)
 [deploy]
-  strategy = "rolling"
+strategy = "rolling"
 
 # HTTP service configuration
 [http_service]
-  internal_port = 8000
-  force_https = true
-  auto_stop_machines = "off"
-  auto_start_machines = true
-  min_machines_running = 1
-  processes = ["app"]
+internal_port = 8000
+force_https = true
+auto_stop_machines = "off"
+auto_start_machines = true
+min_machines_running = 1
+processes = ["app"]
 
 # Health check configuration
 [[http_service.checks]]
-  grace_period = "10s"
-  interval = "30s"
-  method = "GET"
-  timeout = "5s"
-  path = "/health"
+grace_period = "10s"
+interval = "30s"
+method = "GET"
+timeout = "5s"
+path = "/health"
 
 # VM configuration
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+size = "shared-cpu-1x"
+memory = "512mb"
 
 # Environment variables (non-sensitive)
 [env]
-  ENVIRONMENT = "production"
-  APP_NAME = "Griot and Grits API"
-  APP_VERSION = "0.1.0"
-  DEBUG = "false"
+ENVIRONMENT = "production"
+APP_NAME = "Griot and Grits API"
+APP_VERSION = "0.1.0"
+DEBUG = "false"
 
-  CORS_ALLOWED_ORIGINS = "https://griotandgrits.org,http://localhost:3000"
 
-  # Database settings
-  DB_NAME = "gngdb"
-  DB_MAX_POOL_SIZE = "10"
-  DB_MIN_POOL_SIZE = "1"
+# Database settings
+DB_NAME = "gngdb"
+DB_MAX_POOL_SIZE = "10"
+DB_MIN_POOL_SIZE = "1"
 
-  # Storage settings
-  STORAGE_BUCKET = "artifacts"
-  STORAGE_REGION = "us-east-1"
-  STORAGE_SECURE = "true"
+# Storage settings
+STORAGE_BUCKET = "artifacts"
+STORAGE_REGION = "us-east-1"
+STORAGE_SECURE = "true"
 
-  # Globus settings (disabled by default)
-  GLOBUS_ENABLED = "true"
-  GLOBUS_BASE_PATH = "/archive/collections/"
+# Globus settings (disabled by default)
+GLOBUS_ENABLED = "true"
+GLOBUS_BASE_PATH = "/archive/collections/"
 
-  # Processing settings
-  PROCESSING_MODE = "sync"
-  PROCESSING_ENABLE_METADATA_EXTRACTION = "true"
-  PROCESSING_ENABLE_TRANSCRIPTION = "false"
-  PROCESSING_ENABLE_LLM_ENRICHMENT = "false"
-  PROCESSING_TRANSCRIPTION_API_URL = "https://whisper-api-griot-grits.apps.ocp-test.nerc.mghpcc.org/"
+# Processing settings
+PROCESSING_MODE = "sync"
+PROCESSING_ENABLE_METADATA_EXTRACTION = "true"
+PROCESSING_ENABLE_TRANSCRIPTION = "false"
+PROCESSING_ENABLE_LLM_ENRICHMENT = "false"
+PROCESSING_TRANSCRIPTION_API_URL = "https://whisper-api-griot-grits.apps.ocp-test.nerc.mghpcc.org/"
