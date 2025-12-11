@@ -84,6 +84,34 @@ class GlobusSettings(BaseSettings):
     )
 
 
+class CORSSettings(BaseSettings):
+    """CORS (Cross-Origin Resource Sharing) configuration"""
+
+    model_config = SettingsConfigDict(env_prefix="CORS_", extra="ignore")
+
+    allowed_origins: str = Field(
+        default="http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:8080",
+        description="Comma-separated list of allowed origins for CORS",
+    )
+    allow_credentials: bool = Field(
+        default=True,
+        description="Allow credentials in CORS requests",
+    )
+    allow_methods: list[str] = Field(
+        default=["*"],
+        description="Allowed HTTP methods",
+    )
+    allow_headers: list[str] = Field(
+        default=["*"],
+        description="Allowed HTTP headers",
+    )
+
+    @property
+    def origins_list(self) -> list[str]:
+        """Convert comma-separated origins to list"""
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+
+
 class ProcessingSettings(BaseSettings):
     """Background processing and pipeline configuration"""
 
@@ -125,8 +153,6 @@ class Settings(BaseSettings):
     """Main application settings"""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
         env_nested_delimiter="__",
@@ -149,18 +175,21 @@ class Settings(BaseSettings):
         description="Enable debug mode",
     )
 
-    # Nested settings - will read from .env using their env_prefix
+    # Nested settings - will read from environment variables using their env_prefix
     database: DatabaseSettings = Field(
-        default_factory=lambda: DatabaseSettings(_env_file=".env")
+        default_factory=DatabaseSettings
     )
     storage: StorageSettings = Field(
-        default_factory=lambda: StorageSettings(_env_file=".env")
+        default_factory=StorageSettings
     )
     globus: GlobusSettings = Field(
-        default_factory=lambda: GlobusSettings(_env_file=".env")
+        default_factory=GlobusSettings
+    )
+    cors: CORSSettings = Field(
+        default_factory=CORSSettings
     )
     processing: ProcessingSettings = Field(
-        default_factory=lambda: ProcessingSettings(_env_file=".env")
+        default_factory=ProcessingSettings
     )
 
 
