@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from .api import artifacts_router
 from .api.preservation import router as preservation_router
 from .api.collections import router as collections_router
@@ -13,6 +14,12 @@ app = FastAPI(
     version=settings.app_version,
     docs_url="/docs",
     redoc_url="/redoc",
+)
+
+# Prevent host header injection attacks
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["gng-api.fly.dev", "*.fly.dev", "localhost", "127.0.0.1"]
 )
 
 # Configure CORS using settings
