@@ -15,6 +15,7 @@ class Base(BaseModel):
 class ArtifactStatus(str, Enum):
     """Processing status of an artifact"""
 
+    DRAFT = "draft"
     UPLOADING = "uploading"
     PROCESSING = "processing"
     READY = "ready"
@@ -254,6 +255,30 @@ class Artifact(ArtifactBase):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow,
         description="Timestamp when artifact was last updated",
+    )
+
+    # Collection linking
+    collection_id: str | None = Field(
+        default=None,
+        description="ID of collection this artifact belongs to",
+    )
+    package_path: str | None = Field(
+        default=None,
+        description="Relative path within collection package (for Globus uploads)",
+    )
+    ingestion_source: str = Field(
+        default="api",
+        description="Source of ingestion: 'api' (direct upload) or 'globus' (bulk upload)",
+    )
+
+    # Approval tracking (for draft artifacts)
+    approved_at: datetime | None = Field(
+        default=None,
+        description="Timestamp when draft artifact was approved",
+    )
+    approved_by: str | None = Field(
+        default=None,
+        description="User who approved the draft artifact",
     )
 
     @classmethod

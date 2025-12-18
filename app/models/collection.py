@@ -33,6 +33,20 @@ class Collection(BaseModel):
     actual_artifact_count: int | None = Field(default=None)
     total_size_bytes: int | None = Field(default=None)
 
+    # Artifact tracking
+    artifact_ids: list[str] = Field(
+        default_factory=list,
+        description="List of artifact IDs in this collection",
+    )
+    pending_artifact_count: int = Field(
+        default=0,
+        description="Count of artifacts with status=DRAFT needing approval",
+    )
+    approved_artifact_count: int = Field(
+        default=0,
+        description="Count of artifacts with status=READY",
+    )
+
     # Verification
     verification_errors: list[str] = Field(default_factory=list)
     has_manifest: bool = Field(default=False)
@@ -47,6 +61,14 @@ class Collection(BaseModel):
     uploaded_at: datetime | None = None
     verified_at: datetime | None = None
     sealed_at: datetime | None = None
+    last_sealed_at: datetime | None = Field(
+        default=None,
+        description="Timestamp of most recent sealing (for re-sealable collections)",
+    )
+    seal_count: int = Field(
+        default=0,
+        description="Number of times collection has been sealed",
+    )
 
     # Metadata
     description: str | None = None
