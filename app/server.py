@@ -56,3 +56,15 @@ async def health_check():
             "archive_enabled": settings.globus.enabled,
         },
     }
+
+
+@app.get("/check-ip")
+async def check_outbound_ip():
+    """Check what outbound IP this server is using"""
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://api.ipify.org?format=json", timeout=5.0)
+            return response.json()
+    except Exception as e:
+        return {"error": str(e)}
