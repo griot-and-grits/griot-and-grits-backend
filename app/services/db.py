@@ -18,7 +18,11 @@ class Database:
     """
 
     def __init__(self, uri: str, db_name: str):
-        self.client = AsyncIOMotorClient(uri)
+        self.client = AsyncIOMotorClient(
+            uri,
+            tls=True,
+            tlsAllowInvalidCertificates=False
+        )
         self.db = self.client[db_name]
         self._indexes_created = False
 
