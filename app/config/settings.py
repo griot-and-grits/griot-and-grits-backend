@@ -7,7 +7,12 @@ from typing import Literal
 class DatabaseSettings(BaseSettings):
     """MongoDB database configuration"""
 
-    model_config = SettingsConfigDict(env_prefix="DB_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="DB_",
+        extra="ignore"
+    )
 
     uri: str = Field(
         description="MongoDB connection URI",
@@ -30,7 +35,12 @@ class DatabaseSettings(BaseSettings):
 class StorageSettings(BaseSettings):
     """MinIO/S3-compatible storage configuration for hot storage"""
 
-    model_config = SettingsConfigDict(env_prefix="STORAGE_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="STORAGE_",
+        extra="ignore"
+    )
 
     endpoint: str = Field(
         description="MinIO endpoint (e.g., localhost:9000)",
@@ -59,7 +69,12 @@ class StorageSettings(BaseSettings):
 class GlobusSettings(BaseSettings):
     """Globus archive storage configuration"""
 
-    model_config = SettingsConfigDict(env_prefix="GLOBUS_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="GLOBUS_",
+        extra="ignore"
+    )
 
     enabled: bool = Field(
         default=False,
@@ -87,7 +102,12 @@ class GlobusSettings(BaseSettings):
 class CORSSettings(BaseSettings):
     """CORS (Cross-Origin Resource Sharing) configuration"""
 
-    model_config = SettingsConfigDict(env_prefix="CORS_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="CORS_",
+        extra="ignore"
+    )
 
     allowed_origins: str = Field(
         default="http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:8080",
@@ -115,7 +135,12 @@ class CORSSettings(BaseSettings):
 class ProcessingSettings(BaseSettings):
     """Background processing and pipeline configuration"""
 
-    model_config = SettingsConfigDict(env_prefix="PROCESSING_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="PROCESSING_",
+        extra="ignore"
+    )
 
     mode: Literal["sync", "async"] = Field(
         default="sync",
@@ -153,6 +178,8 @@ class Settings(BaseSettings):
     """Main application settings"""
 
     model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
         env_nested_delimiter="__",
