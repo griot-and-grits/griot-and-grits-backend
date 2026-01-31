@@ -9,6 +9,7 @@ from app.models.metadata import (
     StorageType,
 )
 from app.models.collection import Collection, CollectionStatus
+from app.models.feedback import Feedback, FeedbackStatus, FeedbackType
 
 
 class Database:
@@ -18,11 +19,7 @@ class Database:
     """
 
     def __init__(self, uri: str, db_name: str):
-        self.client = AsyncIOMotorClient(
-            uri,
-            tls=True,
-            tlsAllowInvalidCertificates=False
-        )
+        self.client = AsyncIOMotorClient(uri)
         self.db = self.client[db_name]
         self._indexes_created = False
 
@@ -42,6 +39,13 @@ class Database:
         await self.db.collections.create_index("status")
         await self.db.collections.create_index("slug", unique=True)
         await self.db.collections.create_index("created_at")
+
+        # Indexes for feedback queries
+        await self.db.feedback.create_index("feedback_id", unique=True)
+        await self.db.feedback.create_index("status")
+        await self.db.feedback.create_index("feedback_type")
+        await self.db.feedback.create_index("artifact_id")
+        await self.db.feedback.create_index("created_at")
 
         self._indexes_created = True
 
@@ -342,6 +346,103 @@ class Database:
         """
         query = {"status": status.value} if status else {}
         return await self.db.collections.count_documents(query)
+
+    # ===== Feedback Management Methods =====
+
+    async def insert_feedback(self, feedback: Feedback):
+        """
+        Insert a feedback submission.
+
+        Args:
+            feedback: Feedback object
+
+        Returns:
+            Dictionary with inserted feedback ID
+        """
+        await self._ensure_indexes()
+        feedback_dict = feedback.model_dump(mode="json")
+        result = await self.db.feedback.insert_one(feedback_dict)
+        return {"id": str(result.inserted_id)}
+
+    async def get_feedback(self, feedback_id: str) -> dict | None:
+        """
+        Get feedback by feedback_id.
+
+        Args:
+            feedback_id: Feedback identifier
+
+        Returns:
+            Feedback document or None
+        """
+        return await self.db.feedback.find_one({"feedback_id": feedback_id})
+
+    async def update_feedback(self, feedback_id: str, updates: dict) -> bool:
+        """
+        Update feedback fields.
+
+        Args:
+            feedback_id: Feedback identifier
+            updates: Dictionary of fields to update
+
+        Returns:
+            True if updated successfully
+        """
+        updates["updated_at"] = datetime.utcnow()
+        result = await self.db.feedback.update_one(
+            {"feedback_id": feedback_id},
+            {"$set": updates}
+        )
+        return result.modified_count > 0
+
+    async def list_feedback(
+        self,
+        status: FeedbackStatus | None = None,
+        feedback_type: FeedbackType | None = None,
+        limit: int = 50,
+        skip: int = 0
+    ) -> list[dict]:
+        """
+        List feedback with optional status and type filters.
+
+        Args:
+            status: Optional status filter
+            feedback_type: Optional type filter
+            limit: Maximum number of results
+            skip: Number to skip for pagination
+
+        Returns:
+            List of feedback documents
+        """
+        await self._ensure_indexes()
+        query = {}
+        if status:
+            query["status"] = status.value
+        if feedback_type:
+            query["feedback_type"] = feedback_type.value
+        cursor = self.db.feedback.find(query).skip(skip).limit(limit).sort("created_at", -1)
+        return await cursor.to_list(length=None)
+
+    async def count_feedback(
+        self,
+        status: FeedbackStatus | None = None,
+        feedback_type: FeedbackType | None = None,
+    ) -> int:
+        """
+        Count feedback with optional filters.
+
+        Args:
+            status: Optional status filter
+            feedback_type: Optional type filter
+
+        Returns:
+            Number of feedback entries
+        """
+        query = {}
+        if status:
+            query["status"] = status.value
+        if feedback_type:
+            query["feedback_type"] = feedback_type.value
+        return await self.db.feedback.count_documents(query)
 
     async def close(self):
         """Close the database connection."""

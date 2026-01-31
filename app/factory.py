@@ -8,6 +8,7 @@ from app.services.preservation_event_service import PreservationEventService
 from app.services.ingestion_service import IngestionService
 from app.services.globus_service import GlobusService
 from app.services.collection_service import CollectionService
+from app.services.feedback_service import FeedbackService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,9 @@ class Factory:
         self.fixity_service = FixityService()
         self.storage_location_service = StorageLocationService(self.db)
         self.preservation_event_service = PreservationEventService(self.db)
+
+        # Feedback service (always available)
+        self.feedback_service = FeedbackService(db=self.db)
 
         # Ingestion orchestrator
         self.ingestion_service = IngestionService(
