@@ -18,6 +18,13 @@ from .collection import (
     CollectionDraftResponse,
     CollectionVerificationResult,
 )
+from .feedback import (
+    FeedbackType,
+    FeedbackStatus,
+    Feedback,
+    FeedbackCreateRequest,
+    FeedbackStatusUpdateRequest,
+)
 
 __all__ = (
     "ArchivalInfo",
@@ -36,4 +43,9 @@ __all__ = (
     "CollectionDraftRequest",
     "CollectionDraftResponse",
     "CollectionVerificationResult",
+    "FeedbackType",
+    "FeedbackStatus",
+    "Feedback",
+    "FeedbackCreateRequest",
+    "FeedbackStatusUpdateRequest",
 )

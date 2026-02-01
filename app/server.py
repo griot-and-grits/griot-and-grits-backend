@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import artifacts_router
+from .api import artifacts_router, feedback_router
 from .api.preservation import router as preservation_router
 from .api.collections import router as collections_router
 from .factory import get_settings
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(artifacts_router)
 app.include_router(preservation_router)
 app.include_router(collections_router)
+app.include_router(feedback_router)
 
 
 @app.get("/")
@@ -40,6 +41,7 @@ def read_root():
             "artifacts": "/artifacts",
             "preservation": "/preservation",
             "collections": "/collections" if settings.globus.enabled else None,
+            "feedback": "/feedback",
             "docs": "/docs",
         },
     }
