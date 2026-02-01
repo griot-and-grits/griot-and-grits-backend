@@ -20,7 +20,7 @@ async def test_ingest_artifact(client):
         data={"metadata": json.dumps(SAMPLE_METADATA)},
         files={"file": ("test.txt", b"hello world", "text/plain")},
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Ingest failed: {response.text}"
     body = response.json()
     assert "artifact_id" in body
     assert "status" in body
