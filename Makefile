@@ -1,7 +1,7 @@
 # Environment variables
 DEV_MONGO_USER=admin
 DEV_MONGO_PASSWORD=gngdevpass12
-DEV_MONGO_URI=mongodb://$(DEV_MONGO_USER):$(DEV_MONGO_PASSWORD)@localhost:27017/
+DEV_MONGO_URI=mongodb://$(DEV_MONGO_USER):$(DEV_MONGO_PASSWORD)@localhost:27017/?tls=false
 
 # Container image variables
 IMAGE_NAME=gng-api
@@ -24,10 +24,10 @@ install-req:
 
 # Run development server with uv
 dev-up: dev-mongo-up
-	DB_URI=$(DEV_MONGO_URI) DB_NAME=gngdb uv run uvicorn app.server:app --port 8000 --reload
+	set -a && . .env && set +a && DB_URI=$(DEV_MONGO_URI) DB_NAME=gngdb uv run uvicorn app.server:app --port 8000 --reload
 
 dev-up-agent: dev-mongo-up
-	DB_URI=$(DEV_MONGO_URI) DB_NAME=gngdb uv run uvicorn app.server:app --port 8009 --reload
+	set -a && . .env && set +a && DB_URI=$(DEV_MONGO_URI) DB_NAME=gngdb uv run uvicorn app.server:app --port 8009 --reload
 
 # Start MongoDB container
 dev-mongo-up:

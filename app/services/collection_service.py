@@ -5,10 +5,16 @@ Service for managing preservation collections.
 from datetime import datetime
 import re
 import uuid
+from pathlib import Path
 from app.models.collection import (
     Collection,
     CollectionDraftRequest,
     CollectionStatus,
+)
+from app.models.metadata import (
+    Artifact,
+    ArtifactStatus,
+    ArchivalInfo,
 )
 from app.services.globus_service import GlobusService, GlobusServiceError
 from app.services.db import Database
@@ -147,6 +153,49 @@ class CollectionService:
             # Combine errors and warnings for reporting
             all_messages = verification_errors + warnings
 
+            # NEW: Create draft artifacts from files in raw/ folder
+            # Only create artifacts for NEW files (not already in artifact_ids)
+            created_artifact_count = 0
+            if status == CollectionStatus.SEALED and raw_file_count > 0:
+                existing_artifact_ids = set(collection.artifact_ids)
+
+                for file_info in raw_file_list:
+                    filename = file_info["name"]
+                    relative_path = f"raw/{filename}"
+
+                    # Extract metadata from filename
+                    metadata = self._extract_metadata_from_filename(filename, file_info)
+
+                    try:
+                        # Create draft artifact
+                        artifact = Artifact(
+                            title=metadata['title'],
+                            description=metadata['description'],
+                            recorded_date=metadata['recorded_date'],
+                            archival_info=ArchivalInfo(**metadata['archival_info']),
+                            status=ArtifactStatus.DRAFT,
+                            collection_id=collection_id,
+                            package_path=relative_path,
+                            ingestion_source="globus",
+                        )
+
+                        # Insert artifact into database
+                        result = await self.db.insert_artifact("artifacts", artifact)
+                        artifact_id = result["id"]
+
+                        # Link to collection (adds to artifact_ids)
+                        await self.db.link_artifact_to_collection(artifact_id, collection_id)
+
+                        created_artifact_count += 1
+                        logger.info(f"Created draft artifact {artifact_id} for file {filename}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to create artifact for {filename}: {e}")
+                        warnings.append(f"Warning: Could not create artifact for {filename}")
+
+                # Update collection artifact counts
+                await self.db.update_collection_artifact_counts(collection_id)
+
             # Update collection
             now = datetime.utcnow()
             updates = {
@@ -161,6 +210,9 @@ class CollectionService:
 
             if status == CollectionStatus.SEALED:
                 updates["sealed_at"] = now
+                updates["last_sealed_at"] = now
+                # Increment seal_count
+                updates["seal_count"] = collection.seal_count + 1
 
             await self.db.update_collection(collection_id, updates)
 
@@ -192,6 +244,112 @@ class CollectionService:
                 "verification_errors": [error_msg]
             })
             logger.error(f"Collection {collection_id} verification failed: {e}")
+            raise CollectionServiceError(error_msg)
+
+    async def reseal_collection(self, collection_id: str) -> Collection:
+        """
+        Re-scan Globus folder and create draft artifacts for NEW files only.
+        Compare against existing artifact_ids to avoid duplicates.
+        Increment seal_count and update last_sealed_at.
+
+        Args:
+            collection_id: Collection identifier
+
+        Returns:
+            Updated Collection
+        """
+        collection_dict = await self.db.get_collection(collection_id)
+        if not collection_dict:
+            raise CollectionServiceError(f"Collection not found: {collection_id}")
+
+        collection = Collection(**collection_dict)
+
+        try:
+            # Get files currently in Globus raw/ folder
+            raw_path = f"{collection.globus_path}raw/"
+            logger.info(f"Re-sealing collection {collection_id} at {raw_path}")
+
+            raw_files = await self.globus.list_directory(raw_path)
+            raw_file_list = [f for f in raw_files if f["type"] == "file"]
+
+            # Get existing artifacts for this collection to avoid duplicates
+            existing_artifacts = await self.db.get_artifacts_by_collection(collection_id, limit=1000)
+            existing_filenames = {
+                art.get("package_path", "").split("/")[-1]
+                for art in existing_artifacts
+                if art.get("package_path")
+            }
+
+            # Create draft artifacts for NEW files only
+            created_artifact_count = 0
+            for file_info in raw_file_list:
+                filename = file_info["name"]
+
+                # Skip if we already have an artifact for this file
+                if filename in existing_filenames:
+                    continue
+
+                relative_path = f"raw/{filename}"
+                metadata = self._extract_metadata_from_filename(filename, file_info)
+
+                try:
+                    # Create draft artifact
+                    artifact = Artifact(
+                        title=metadata['title'],
+                        description=metadata['description'],
+                        recorded_date=metadata['recorded_date'],
+                        archival_info=ArchivalInfo(**metadata['archival_info']),
+                        status=ArtifactStatus.DRAFT,
+                        collection_id=collection_id,
+                        package_path=relative_path,
+                        ingestion_source="globus",
+                    )
+
+                    # Insert artifact into database
+                    result = await self.db.insert_artifact("artifacts", artifact)
+                    artifact_id = result["id"]
+
+                    # Link to collection
+                    await self.db.link_artifact_to_collection(artifact_id, collection_id)
+
+                    created_artifact_count += 1
+                    logger.info(f"Created draft artifact {artifact_id} for new file {filename}")
+
+                except Exception as e:
+                    logger.error(f"Failed to create artifact for {filename}: {e}")
+
+            # Update collection artifact counts and seal tracking
+            await self.db.update_collection_artifact_counts(collection_id)
+
+            now = datetime.utcnow()
+            updates = {
+                "last_sealed_at": now,
+                "seal_count": collection.seal_count + 1,
+                "actual_artifact_count": len(raw_file_list),
+                "total_size_bytes": sum(f.get("size", 0) for f in raw_file_list),
+            }
+
+            await self.db.update_collection(collection_id, updates)
+
+            # Fetch updated collection
+            updated_dict = await self.db.get_collection(collection_id)
+            updated_collection = Collection(**updated_dict)
+
+            logger.info(
+                f"Collection {collection_id} re-sealed. "
+                f"Created {created_artifact_count} new draft artifacts. "
+                f"Seal count: {updated_collection.seal_count}"
+            )
+            return updated_collection
+
+        except GlobusServiceError as e:
+            error_msg = f"Globus re-seal failed: {str(e)}"
+            logger.error(f"Collection {collection_id} re-seal failed: {e}")
+            raise CollectionServiceError(error_msg)
+
+        except Exception as e:
+            error_msg = f"Re-seal failed: {str(e)}"
+            logger.error(f"Collection {collection_id} re-seal failed: {e}")
             raise CollectionServiceError(error_msg)
 
     async def get_collection(self, collection_id: str) -> Collection | None:
@@ -247,6 +405,52 @@ class CollectionService:
     def _generate_collection_id(self) -> str:
         """Generate unique collection ID"""
         return f"coll_{uuid.uuid4().hex[:12]}"
+
+    def _extract_metadata_from_filename(self, filepath: str, file_info: dict) -> dict:
+        """
+        Extract minimal metadata from filename for draft artifacts.
+
+        Args:
+            filepath: Relative path within collection (e.g., "interview_1975.mp4")
+            file_info: File info dict from Globus with 'name', 'size', etc.
+
+        Returns:
+            Dictionary with extracted metadata
+        """
+        path = Path(filepath)
+        filename = path.stem  # without extension
+        extension = path.suffix.lstrip('.')
+
+        # Generate title: replace underscores/dashes with spaces, capitalize
+        title = filename.replace('_', ' ').replace('-', ' ').title()
+
+        # Infer type from extension
+        type_mapping = {
+            'mp4': 'video', 'mov': 'video', 'avi': 'video', 'mkv': 'video', 'webm': 'video',
+            'mp3': 'audio', 'wav': 'audio', 'flac': 'audio', 'm4a': 'audio', 'aac': 'audio',
+            'jpg': 'image', 'jpeg': 'image', 'png': 'image', 'gif': 'image', 'tiff': 'image',
+            'pdf': 'document', 'doc': 'document', 'docx': 'document', 'txt': 'document',
+        }
+        inferred_type = type_mapping.get(extension.lower(), 'other')
+
+        # Get current date as string
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+
+        return {
+            'title': title,
+            'description': f"Uploaded via Globus (auto-generated from filename)",
+            'recorded_date': today,
+            'archival_info': {
+                'creation_date': today,
+                'checksum': None,
+                'storage_location': filepath,
+            },
+            'original_filename': file_info['name'],
+            'file_extension': extension,
+            'format': extension,
+            'type': inferred_type,
+            'size_bytes': file_info.get('size', 0),
+        }
 
 
 class CollectionServiceError(Exception):

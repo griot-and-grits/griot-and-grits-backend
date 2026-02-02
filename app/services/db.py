@@ -33,6 +33,8 @@ class Database:
 
         # Indexes for artifact queries
         await self.db.artifacts.create_index("status")
+        await self.db.artifacts.create_index("collection_id")
+        await self.db.artifacts.create_index([("collection_id", 1), ("status", 1)])
         await self.db.artifacts.create_index("created_at")
         await self.db.artifacts.create_index([("title", "text"), ("description", "text")])
         await self.db.artifacts.create_index("storage_locations.checksum_sha256")
@@ -342,6 +344,211 @@ class Database:
         """
         query = {"status": status.value} if status else {}
         return await self.db.collections.count_documents(query)
+
+    # ===== Artifact-Collection Linking Methods =====
+
+    async def get_artifacts_by_collection(
+        self,
+        collection_id: str,
+        status: ArtifactStatus | None = None,
+        limit: int = 100,
+        skip: int = 0
+    ) -> list[dict]:
+        """
+        Get all artifacts in a collection, optionally filtered by status.
+
+        Args:
+            collection_id: Collection identifier
+            status: Optional artifact status filter
+            limit: Maximum number of artifacts to return
+            skip: Number of artifacts to skip
+
+        Returns:
+            List of artifact documents
+        """
+        await self._ensure_indexes()
+        query = {"collection_id": collection_id}
+        if status:
+            query["status"] = status.value
+
+        cursor = self.db.artifacts.find(query).skip(skip).limit(limit).sort("created_at", -1)
+        return await cursor.to_list(length=None)
+
+    async def get_draft_artifacts(
+        self,
+        collection_id: str | None = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> tuple[list[dict], int]:
+        """
+        Get draft artifacts with pagination.
+
+        Args:
+            collection_id: Optional filter by collection
+            skip: Number of artifacts to skip
+            limit: Maximum number to return
+
+        Returns:
+            Tuple of (artifacts list, total count)
+        """
+        await self._ensure_indexes()
+        query = {"status": ArtifactStatus.DRAFT.value}
+        if collection_id:
+            query["collection_id"] = collection_id
+
+        cursor = self.db.artifacts.find(query).skip(skip).limit(limit).sort("created_at", -1)
+        artifacts = await cursor.to_list(length=None)
+        total = await self.db.artifacts.count_documents(query)
+
+        return artifacts, total
+
+    async def link_artifact_to_collection(
+        self,
+        artifact_id: str,
+        collection_id: str
+    ) -> bool:
+        """
+        Link artifact to collection and update collection's artifact_ids.
+
+        Args:
+            artifact_id: Artifact identifier
+            collection_id: Collection identifier
+
+        Returns:
+            True if both updates successful
+        """
+        try:
+            oid = ObjectId(artifact_id)
+        except Exception:
+            oid = artifact_id
+
+        # Update artifact with collection_id
+        artifact_result = await self.db.artifacts.update_one(
+            {"_id": oid},
+            {
+                "$set": {
+                    "collection_id": collection_id,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+        )
+
+        # Add artifact_id to collection's artifact_ids array
+        collection_result = await self.db.collections.update_one(
+            {"collection_id": collection_id},
+            {
+                "$addToSet": {"artifact_ids": str(oid)},  # $addToSet prevents duplicates
+                "$set": {"updated_at": datetime.utcnow()},
+            },
+        )
+
+        return artifact_result.modified_count > 0 and collection_result.modified_count > 0
+
+    async def approve_artifact(
+        self,
+        artifact_id: str,
+        approved_by: str
+    ) -> dict | None:
+        """
+        Approve draft artifact: status=draft → ready, set approved_at and approved_by.
+
+        Args:
+            artifact_id: Artifact identifier
+            approved_by: User who approved
+
+        Returns:
+            Updated artifact document or None if not found
+        """
+        try:
+            oid = ObjectId(artifact_id)
+        except Exception:
+            oid = artifact_id
+
+        result = await self.db.artifacts.find_one_and_update(
+            {"_id": oid, "status": ArtifactStatus.DRAFT.value},
+            {
+                "$set": {
+                    "status": ArtifactStatus.READY.value,
+                    "approved_at": datetime.utcnow(),
+                    "approved_by": approved_by,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+            return_document=True,  # Return updated document
+        )
+
+        return result
+
+    async def bulk_update_artifact_metadata(
+        self,
+        artifact_ids: list[str],
+        metadata_updates: dict
+    ) -> int:
+        """
+        Update metadata for multiple artifacts.
+
+        Args:
+            artifact_ids: List of artifact identifiers
+            metadata_updates: Dictionary of metadata fields to update
+
+        Returns:
+            Count of artifacts updated
+        """
+        # Convert string IDs to ObjectIds where possible
+        oids = []
+        for aid in artifact_ids:
+            try:
+                oids.append(ObjectId(aid))
+            except Exception:
+                oids.append(aid)
+
+        # Add updated_at to the updates
+        metadata_updates["updated_at"] = datetime.utcnow()
+
+        result = await self.db.artifacts.update_many(
+            {"_id": {"$in": oids}},
+            {"$set": metadata_updates},
+        )
+
+        return result.modified_count
+
+    async def update_collection_artifact_counts(
+        self,
+        collection_id: str
+    ) -> bool:
+        """
+        Recalculate pending_artifact_count and approved_artifact_count for a collection.
+
+        Args:
+            collection_id: Collection identifier
+
+        Returns:
+            True if updated successfully
+        """
+        # Count draft artifacts
+        pending_count = await self.db.artifacts.count_documents({
+            "collection_id": collection_id,
+            "status": ArtifactStatus.DRAFT.value
+        })
+
+        # Count ready artifacts
+        approved_count = await self.db.artifacts.count_documents({
+            "collection_id": collection_id,
+            "status": ArtifactStatus.READY.value
+        })
+
+        result = await self.db.collections.update_one(
+            {"collection_id": collection_id},
+            {
+                "$set": {
+                    "pending_artifact_count": pending_count,
+                    "approved_artifact_count": approved_count,
+                    "updated_at": datetime.utcnow(),
+                }
+            },
+        )
+
+        return result.modified_count > 0
 
     async def close(self):
         """Close the database connection."""

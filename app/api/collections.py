@@ -132,6 +132,44 @@ async def get_collection(collection_id: str):
     return collection
 
 
+@router.post("/{collection_id}/reseal", response_model=Collection)
+async def reseal_collection(collection_id: str):
+    """
+    Re-scan Globus folder and create draft artifacts for NEW files only.
+
+    This allows collections to grow over time. The collection can be "re-sealed"
+    multiple times as new files are added to the raw/ folder.
+
+    **Behavior:**
+    - Scans raw/ folder for files
+    - Creates draft artifacts for files NOT already in the collection
+    - Increments seal_count
+    - Updates last_sealed_at timestamp
+    - Updates collection artifact counts
+
+    **Use case:**
+    User uploads initial batch → finalize → later adds more files → reseal
+
+    Args:
+        collection_id: Collection identifier
+
+    Returns:
+        Updated Collection with new pending_artifact_count
+    """
+    if not factory.collection_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Collection service not available. Globus may not be enabled."
+        )
+
+    try:
+        collection = await factory.collection_service.reseal_collection(collection_id)
+        return collection
+    except Exception as e:
+        logger.error(f"Failed to reseal collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/")
 async def list_collections(
     status: CollectionStatus | None = Query(default=None, description="Filter by status"),
